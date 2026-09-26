@@ -3,6 +3,8 @@ import struct, hashlib, sys, os, shutil, datetime
 
 PROFILE_VERSION = 46
 PLAYERDATA_VERSION = 33
+INV_ROWS_FALLBACK = 4      # backpack rows before any upgrade
+INV_ROWS_MAX = 256         # y is one byte, so no item can sit past row 255
 
 SKILLS = {
     1: "Swords", 2: "Knives", 3: "Clubs", 4: "Polearms", 5: "Spears",
@@ -182,6 +184,22 @@ def parse_profile(body):
     }
 
 
+def inv_rows_from_uniques(uniques):
+    for u in uniques:
+        if u.startswith("invrows "):
+            try:
+                return max(1, min(INV_ROWS_MAX, int(u.split(" ", 1)[1])))
+            except ValueError:
+                pass
+    return INV_ROWS_FALLBACK
+
+
+def inv_rows_for(items, declared):
+    # never lowered: an item past the declared count would be dropped on save
+    deepest = max((int(it["y"]) for it in items), default=-1) + 1
+    return max(declared, deepest)
+
+
 def parse_blob(blob):
     r = Reader(blob)
     pd = r.i32()
@@ -214,7 +232,8 @@ def parse_blob(blob):
     for _ in range(r.i32()): r.s(); r.i32()
     for _ in range(r.i32()): r.s()
     for _ in range(r.i32()): r.s()
-    for _ in range(r.i32()): r.s()
+    # global keys; "invrows N" is one of them
+    declared_rows = inv_rows_from_uniques([r.s() for _ in range(r.i32())])
     for _ in range(r.i32()): r.s()
     for _ in range(r.i32()): r.s()
     for _ in range(r.i32()): r.s(); r.s()
@@ -252,7 +271,7 @@ def parse_blob(blob):
         "skills": skills,
         "guardian_power": guardian_power,
         "item_cheats": item_cheats,
-        "inventory": items,
+        "inventory": items, "inv_rows": inv_rows_for(items, declared_rows),
         "inv_count_off": inv_count_off, "inv_items_end": inv_items_end,
         "sk_ver_off": sk_ver_off, "sk_count_off": sk_count_off,
         "sk_entries_off": sk_entries_off, "sk_end_off": sk_end_off,

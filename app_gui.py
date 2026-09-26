@@ -4,6 +4,7 @@ from tkinter import ttk, filedialog, messagebox
 
 from valheim_character_editor import (
     Character, ParseError, save_character, BASE_FIELDS, SKILLS,
+    INV_ROWS_FALLBACK,
 )
 import valheim_world_editor as world_editor
 import valheim_items as items_db
@@ -74,6 +75,7 @@ class EditorApp:
         self.inv_items = {}
         self.inv_selected = None
         self.inv_dirty = False
+        self.inv_rows = INV_ROWS_FALLBACK
 
         self._build_toolbar()
         self._build_notebook()
@@ -360,15 +362,9 @@ class EditorApp:
                            "slots are replaced. Cheater-marked items are shown in red."),
                   foreground="#555", wraplength=680).pack(anchor="w", **PAD)
 
-        grid = ttk.Frame(f)
-        grid.pack(anchor="w", **PAD)
-        for y in range(4):
-            for x in range(8):
-                lbl = tk.Label(grid, text="", width=14, height=2, relief="groove",
-                               borderwidth=1, bg="#ececec", anchor="center")
-                lbl.grid(row=y, column=x, padx=1, pady=1, sticky="nsew")
-                lbl.bind("<Button-1>", lambda e, xx=x, yy=y: self._select_cell(xx, yy))
-                self.inv_cells[(x, y)] = lbl
+        self.inv_grid = ttk.Frame(f)
+        self.inv_grid.pack(anchor="w", **PAD)
+        self._build_inv_grid()
 
         row2 = ttk.Frame(f)
         row2.pack(fill="x", **PAD)
@@ -380,13 +376,30 @@ class EditorApp:
         ttk.Button(row2, text="Clear all cheater marks",
                    command=self._clear_all_cheats).pack(side="left", padx=(6, 0))
 
+    def _build_inv_grid(self):
+        for lbl in self.inv_cells.values():
+            lbl.destroy()
+        self.inv_cells = {}
+        for y in range(self.inv_rows):
+            for x in range(8):
+                lbl = tk.Label(self.inv_grid, text="", width=14, height=2,
+                               relief="groove", borderwidth=1, bg="#ececec",
+                               anchor="center")
+                lbl.grid(row=y, column=x, padx=1, pady=1, sticky="nsew")
+                lbl.bind("<Button-1>", lambda e, xx=x, yy=y: self._select_cell(xx, yy))
+                self.inv_cells[(x, y)] = lbl
+
     def _populate_inventory(self):
         self.inv_items = {}
         self.inv_selected = None
         self.inv_dirty = False
         if self.ch is not None and self.ch.player is not None:
+            self.inv_rows = self.ch.player["inv_rows"]
             for it in self.ch.player["inventory"]:
                 self.inv_items[(it["x"], it["y"])] = it
+        else:
+            self.inv_rows = INV_ROWS_FALLBACK
+        self._build_inv_grid()
         for (x, y) in self.inv_cells:
             self._render_cell(x, y)
         self._update_cheat_note()
@@ -478,7 +491,7 @@ class EditorApp:
         self._render_cell(x, y)
 
     def _collect_inventory(self):
-        return [self.inv_items[(x, y)] for y in range(4) for x in range(8)
+        return [self.inv_items[(x, y)] for y in range(self.inv_rows) for x in range(8)
                 if self.inv_items.get((x, y)) is not None]
 
     def _update_cheat_note(self):

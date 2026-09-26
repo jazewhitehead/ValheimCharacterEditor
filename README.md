@@ -3,9 +3,11 @@
 Edits your own Valheim character saves (.fch) and world settings. Remove the
 cheater flag, tweak skills and stats, edit the backpack, adjust world modifiers.
 
-Windows: portable single exe — grab it from the Releases page. It's plain
-Python + tkinter under the hood, so Linux and Steam Deck can run it from source
-(see Build from source below).
+Windows: portable single exe — grab it from the Releases page. Releases ship a
+`SHA256SUMS` file to check the download against. The exe is not code-signed, so
+SmartScreen and some antivirus engines may flag it; building from source avoids
+that entirely. Plain Python + tkinter under the hood, so Linux and Steam Deck
+can run it from source (see Build from source below).
 
 ## What it edits
 
@@ -74,6 +76,14 @@ The only dependency is tkinter — on Debian/Ubuntu install python3-tk first
 (most other distros ship it or an equivalent package).
 
     pyinstaller --onefile --windowed --name ValheimCharacterEditor app_gui.py
+
+Release builds add a version resource that the `build` workflow generates from
+the tag:
+
+    pyinstaller --onefile --windowed --name ValheimCharacterEditor \
+        --version-file version_info.txt app_gui.py
+
+Skip `--version-file` if you don't have that file — it only stamps the exe.
 
 ## License
 

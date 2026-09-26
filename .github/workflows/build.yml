@@ -1,0 +1,84 @@
+name: build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyInstaller
+        run: pip install "pyinstaller>=6,<7"
+
+      - name: Tests
+        run: |
+          python test_items.py
+          python test_world_editor.py
+          python test_inventory.py
+
+      - name: Write version resource
+        shell: python
+        run: |
+          import os
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          ver = tag.lstrip("vV") if os.environ["GITHUB_REF_TYPE"] == "tag" else "0.0.0-dev"
+          sem = ver.split("-")[0].split("+")[0]
+          nums = [int(p) if p.isdigit() else 0 for p in sem.split(".")][:3]
+          while len(nums) < 3:
+              nums.append(0)
+          quad = ", ".join(str(n) for n in nums) + ", 0"
+
+          open("version_info.txt", "w", encoding="utf-8").write(f"""VSVersionInfo(
+            ffi=FixedFileInfo(
+              filevers=({quad}), prodvers=({quad}), mask=0x3f, flags=0x0,
+              OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),
+            kids=[StringFileInfo([StringTable('040904B0', [
+                StringStruct('CompanyName', 'ValterKane'),
+                StringStruct('FileDescription', 'Valheim Character Editor'),
+                StringStruct('FileVersion', '{sem}'),
+                StringStruct('InternalName', 'ValheimCharacterEditor'),
+                StringStruct('OriginalFilename', 'ValheimCharacterEditor.exe'),
+                StringStruct('LegalCopyright', 'MIT'),
+                StringStruct('ProductName', 'Valheim Character Editor'),
+                StringStruct('ProductVersion', '{sem}')])]),
+              VarFileInfo([VarStruct('Translation', [1033, 1200])])])""")
+
+      - name: Build exe
+        run: >
+          pyinstaller --onefile --windowed --name ValheimCharacterEditor
+          --version-file version_info.txt app_gui.py
+
+      - name: Checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum ValheimCharacterEditor.exe > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ValheimCharacterEditor-${{ github.ref_name }}
+          path: |
+            dist/ValheimCharacterEditor.exe
+            dist/SHA256SUMS
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/ValheimCharacterEditor.exe
+            dist/SHA256SUMS

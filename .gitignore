@@ -2,6 +2,7 @@ __pycache__/
 build/
 dist/
 *.spec
+version_info.txt
 *.fch
 *.fch.bak*
 _shot_*.png
