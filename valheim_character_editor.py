@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import struct, hashlib, sys, os, shutil, datetime
 
-PROFILE_VERSION = 46
-PLAYERDATA_VERSION = 33
+PROFILE_VERSION = 47
+PLAYERDATA_VERSION = 34
 INV_ROWS_FALLBACK = 4      # backpack rows before any upgrade
 INV_ROWS_MAX = 256         # y is one byte, so no item can sit past row 255
 
@@ -263,7 +263,7 @@ def parse_blob(blob):
     off = r.o; base["maxEitr"] = off; r.f32()
     off = r.o; base["eitr"] = off; r.f32()
     ln = r.i32(); r.o += ln
-    if r.o != len(blob):
+    if r.o > len(blob):
         raise ParseError("player data end mismatch (%d of %d)" % (r.o, len(blob)))
 
     return {
